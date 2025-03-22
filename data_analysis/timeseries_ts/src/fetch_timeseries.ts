@@ -1,3 +1,4 @@
+
 import { ethers } from "ethers";
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
@@ -8,15 +9,32 @@ import {
     ClobClient,
     PriceHistoryFilterParams,
     PriceHistoryInterval,
-} from  "@polymarket/clob-client";
+} from "@polymarket/clob-client";
 
+// Load environment variables
 dotenvConfig({ path: resolve(__dirname, ".env") });
 
 async function main() {
+    // Parse command-line arguments
+    const args = process.argv.slice(2);
+
+    if (args.length < 5) {
+        console.error('Missing parameters: market, startTs, endTs, interval, fidelity');
+        process.exit(1);
+    }
+
+    const market = args[0]; // Market token ID
+    const startTs = parseInt(args[1]); // Start timestamp (Unix)
+    const endTs = parseInt(args[2]); // End timestamp (Unix)
+    const interval = args[3] as PriceHistoryInterval; // Interval string
+    const fidelity = parseInt(args[4]); // Fidelity (resolution in minutes)
+
+    // Set up wallet and chain
     const wallet = new ethers.Wallet(`${process.env.PK}`);
     const chainId = parseInt(`${process.env.CHAIN_ID || Chain.AMOY}`) as Chain;
     console.log(`Address: ${await wallet.getAddress()}, chainId: ${chainId}`);
 
+    // API client credentials
     const host = process.env.CLOB_API_URL || "http://localhost:8080";
     const creds: ApiKeyCreds = {
         key: `${process.env.CLOB_API_KEY}`,
@@ -25,36 +43,22 @@ async function main() {
     };
     const clobClient = new ClobClient(host, chainId, wallet, creds);
 
-    const YES_TOKEN_ID = "51973331945880957072599010054618681509307274170552732113727065440341771479322"; 
-    const NO_TOKEN_ID = "105637525420107465016899790388284587220624374177780103002517436285549579895981";
-    const yes_prices_history = await clobClient.getPricesHistory({
-        startTs: new Date().getTime() / 1000 - 1000,
-        endTs: new Date().getTime() / 1000,
-        market: YES_TOKEN_ID,
+    // Fetch price history for the market
+    const priceHistory = await clobClient.getPricesHistory({
+        startTs,
+        endTs,
+        market,
+        interval,
+        fidelity,
     } as PriceHistoryFilterParams);
 
-    writeFileSync("yes_prices.json", JSON.stringify(yes_prices_history, null, 2));
-    console.log("Saved yes_prices.json");
+    // Generate file name from market ID
+    const marketName = market.substring(0, 5);
+    const fileName = `${marketName}_history.json`;
 
-    const no_prices_history = await clobClient.getPricesHistory({
-        startTs: new Date().getTime() / 1000 - 1000,
-        endTs: new Date().getTime() / 1000,
-        market: NO_TOKEN_ID,
-    } as PriceHistoryFilterParams);
-
-    writeFileSync("no_prices.json", JSON.stringify(no_prices_history, null, 2));
-    console.log("Saved no_prices.json");
-
-    // Optional interval history example:
-    const one_hour_history = await clobClient.getPricesHistory({
-        market: YES_TOKEN_ID,
-        interval: PriceHistoryInterval.ONE_HOUR,
-        fidelity: 1,
-    } as PriceHistoryFilterParams);
-
-    writeFileSync("one_hour_history.json", JSON.stringify(one_hour_history, null, 2));
-    console.log("Saved one_hour_history.json");
+    // Save to JSON file
+    writeFileSync(fileName, JSON.stringify(priceHistory, null, 2));
+    console.log(`Saved ${fileName}`);
 }
 
 main().catch(console.error);
-
