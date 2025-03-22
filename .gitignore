@@ -1,0 +1,17 @@
+build/
+polyenv/
+
+# Data Analysis
+data_analysis/*.log
+data_analysis/.env
+data_analysis/.ipynb_checkpoints
+
+# Typescript Script
+data_analysis/timeseries_ts/node_modules
+data_analysis/timeseries_ts/*.json
+data_analysis/timeseries_ts/src/.env
+data_analysis/timeseries_ts/package_lock.json
+
+
+
+
